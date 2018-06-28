@@ -20,7 +20,6 @@ namespace ServiceScopingPoc
 
         public IServiceProvider CreateServiceProvider(FunctionsServiceProvider containerBuilder)
         {
-            containerBuilder.Build();
             return containerBuilder;
         }
     }

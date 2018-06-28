@@ -34,7 +34,6 @@ namespace ServiceScopingPoc
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
             _serviceProvider.AddServices(services);
-            _serviceProvider.Build();
             return _serviceProvider;
         }
 

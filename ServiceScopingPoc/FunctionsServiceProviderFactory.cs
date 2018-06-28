@@ -27,7 +27,6 @@ namespace ServiceScopingPoc
                 _provider.AddServices(containerBuilder);
             }
 
-            _provider.Build();
             return _provider;
         }
     }

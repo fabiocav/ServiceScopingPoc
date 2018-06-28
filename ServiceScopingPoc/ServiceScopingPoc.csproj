@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <PackageReference Include="DryIoc.dll" Version="3.0.0" />
-    <PackageReference Include="DryIoc.Microsoft.DependencyInjection" Version="2.0.0-preview-03" />
     <PackageReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

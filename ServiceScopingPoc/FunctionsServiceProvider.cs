@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DryIoc;
+using DryIoc.Microsoft.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.Collections.Generic;
@@ -8,16 +10,32 @@ namespace ServiceScopingPoc
 {
     public class FunctionsServiceProvider : IServiceProvider, IServiceScopeFactory
     {
-        private IServiceProvider _inner;
-        private IServiceCollection _child;
+        private Container _root;
+        private IContainer _currentResolver;
         private readonly IServiceCollection _rootDescriptors;
 
         public FunctionsServiceProvider(IServiceCollection descriptors)
         {
+            _root = new Container(rules =>
+            {
+                return rules
+                .With(FactoryMethod.ConstructorWithResolvableArguments)
+                .WithFactorySelector(Rules.SelectLastRegisteredFactory())
+                .WithTrackingDisposableTransients();
+            });
+
+            _root.Populate(descriptors);
+            _currentResolver = _root;
+            _root.UseInstance<IServiceProvider>(this);
+            _root.UseInstance<FunctionsServiceProvider>(this);
+
+            var sp = _currentResolver.Resolve<IServiceProvider>();
             _rootDescriptors = descriptors;
         }
 
         public string State { get; set; }
+
+        public IServiceProvider ServiceProvider => throw new NotImplementedException();
 
         public object GetService(Type serviceType)
         {
@@ -31,7 +49,7 @@ namespace ServiceScopingPoc
                 return this;
             }
 
-            var service =  _inner.GetService(serviceType);
+            var service = _currentResolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
             string name = serviceType.Name;
 
             return service;
@@ -39,48 +57,60 @@ namespace ServiceScopingPoc
 
         public void AddServices(IServiceCollection services)
         {
-            foreach (var item in services)
-            {
-                _rootDescriptors.Add(item);
-            }
-        }
-
-        public void Build()
-        {
-            var collection = new ServiceCollection();
-            IEnumerable<ServiceDescriptor> rootDescriptors = _rootDescriptors;
-
-            if (_child != null)
-            {
-                AddServices(collection, _child);
-                rootDescriptors = _rootDescriptors.Where(d => d.ServiceType != typeof(IHostedService));
-            }
-
-            AddServices(collection, rootDescriptors);
-
-            collection.AddSingleton<FunctionsServiceProvider>(this);
-            var sp = collection.FirstOrDefault(d => d.ServiceType == typeof(IServiceProvider));
-
-            collection.AddSingleton<IServiceProvider>(this);
-            _inner = collection.BuildServiceProvider();
+            _root.Populate(services);
         }
 
         internal void UpdateChildServices(IServiceCollection serviceDescriptors)
         {
-            _child = serviceDescriptors;
-        }
+            var rules = Rules.Default
+                .WithUnknownServiceResolvers(request => new DelegateFactory(_ => _root.Resolve(request.ServiceType, IfUnresolved.ReturnDefault)));
 
-        private void AddServices(ICollection<ServiceDescriptor> collection, IEnumerable<ServiceDescriptor> descriptors)
-        {
-            foreach (var item in descriptors)
-            {
-                collection.Add(item);
-            }
+            var resolver = new Container(rules);
+            resolver.Populate(serviceDescriptors);
+
+            _currentResolver = resolver;
         }
 
         public IServiceScope CreateScope()
         {
-            return _inner.CreateScope();
+            return new FunctionsServiceScope(_currentResolver.OpenScope());
+        }
+
+        public class FunctionsServiceScope : IServiceScope
+        {
+            private readonly ScopedServiceProvider _serviceProvider;
+
+            public FunctionsServiceScope(IResolverContext serviceProvider)
+            {
+                _serviceProvider = new ScopedServiceProvider(serviceProvider);
+            }
+
+            public IServiceProvider ServiceProvider => _serviceProvider;
+
+            public void Dispose()
+            {
+                _serviceProvider.Dispose();
+            }
+        }
+
+        public class ScopedServiceProvider : IServiceProvider, IDisposable
+        {
+            private readonly IResolverContext _resolver;
+
+            public ScopedServiceProvider(IResolverContext container)
+            {
+                _resolver = container;
+            }
+
+            public void Dispose()
+            {
+                _resolver.Dispose();
+            }
+
+            public object GetService(Type serviceType)
+            {
+                return _resolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
+            }
         }
     }
 }
