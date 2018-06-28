@@ -3,26 +3,23 @@ using System;
 
 namespace ServiceScopingPoc
 {
-    public partial class FunctionsServiceProvider
+    public class ScopedServiceProvider : IServiceProvider, IDisposable
     {
-        public class ScopedServiceProvider : IServiceProvider, IDisposable
+        private readonly IResolverContext _resolver;
+
+        public ScopedServiceProvider(IResolverContext container)
         {
-            private readonly IResolverContext _resolver;
+            _resolver = container;
+        }
 
-            public ScopedServiceProvider(IResolverContext container)
-            {
-                _resolver = container;
-            }
+        public void Dispose()
+        {
+            _resolver.Dispose();
+        }
 
-            public void Dispose()
-            {
-                _resolver.Dispose();
-            }
-
-            public object GetService(Type serviceType)
-            {
-                return _resolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
-            }
+        public object GetService(Type serviceType)
+        {
+            return _resolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
         }
     }
 }
