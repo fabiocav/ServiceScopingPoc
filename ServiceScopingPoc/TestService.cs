@@ -2,7 +2,7 @@
 
 namespace ServiceScopingPoc
 {
-    public class TestService : IServiceA, IServiceB
+    public class TestService : IServiceA, IServiceB, IDisposable
     {
         public TestService()
         {
@@ -10,6 +10,11 @@ namespace ServiceScopingPoc
         }
 
         public string Id { get; set; }
+
+        public void Dispose()
+        {
+            
+        }
     }
 
     public interface IServiceA

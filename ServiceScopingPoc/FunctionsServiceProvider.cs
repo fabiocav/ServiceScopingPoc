@@ -3,16 +3,17 @@ using DryIoc.Microsoft.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ServiceScopingPoc
 {
     public class FunctionsServiceProvider : IServiceProvider, IServiceScopeFactory
     {
         private Container _root;
-        private IContainer _currentResolver;
-        private readonly IServiceCollection _rootDescriptors;
+        private FunctionsResolver _currentResolver;
 
         public FunctionsServiceProvider(IServiceCollection descriptors)
         {
@@ -25,12 +26,10 @@ namespace ServiceScopingPoc
             });
 
             _root.Populate(descriptors);
-            _currentResolver = _root;
             _root.UseInstance<IServiceProvider>(this);
             _root.UseInstance<FunctionsServiceProvider>(this);
 
-            var sp = _currentResolver.Resolve<IServiceProvider>();
-            _rootDescriptors = descriptors;
+            _currentResolver = new FunctionsResolver(_root);
         }
 
         public string State { get; set; }
@@ -49,7 +48,7 @@ namespace ServiceScopingPoc
                 return this;
             }
 
-            var service = _currentResolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
+            var service = _currentResolver.Container.Resolve(serviceType, IfUnresolved.ReturnDefault);
             string name = serviceType.Name;
 
             return service;
@@ -68,28 +67,70 @@ namespace ServiceScopingPoc
             var resolver = new Container(rules);
             resolver.Populate(serviceDescriptors);
 
-            _currentResolver = resolver;
+            var previous = _currentResolver;
+            _currentResolver = new FunctionsResolver(resolver);
+
+            if (!ReferenceEquals(previous.Container, _root))
+            {
+                previous.Dispose();
+            }
         }
 
         public IServiceScope CreateScope()
         {
-            return new FunctionsServiceScope(_currentResolver.OpenScope());
+            return _currentResolver.CreateChildScope();
+        }
+
+        internal class FunctionsResolver : IDisposable
+        {
+            public FunctionsResolver(IContainer resolver)
+            {
+                Container = resolver;
+                ChildScopes = new HashSet<FunctionsServiceScope>();
+            }
+
+            public IContainer Container { get; }
+
+            public HashSet<FunctionsServiceScope> ChildScopes { get; }
+
+            public void Dispose()
+            {
+                Task childScopeTasks = Task.WhenAll(ChildScopes.Select(s => s.DisposalTask));
+                Task.WhenAny(childScopeTasks, Task.Delay(30000))
+                    .ContinueWith(t => Container.Dispose());
+            }
+
+            internal FunctionsServiceScope CreateChildScope()
+            {
+                IResolverContext scopedContext = Container.OpenScope();
+                var scope = new FunctionsServiceScope(scopedContext);
+                ChildScopes.Add(scope);
+
+                scope.DisposalTask.ContinueWith(t => ChildScopes.Remove(scope));
+
+                return scope;
+            }
         }
 
         public class FunctionsServiceScope : IServiceScope
         {
+            private readonly TaskCompletionSource<object> _activeTcs;
             private readonly ScopedServiceProvider _serviceProvider;
 
             public FunctionsServiceScope(IResolverContext serviceProvider)
             {
+                _activeTcs = new TaskCompletionSource<object>();
                 _serviceProvider = new ScopedServiceProvider(serviceProvider);
             }
 
             public IServiceProvider ServiceProvider => _serviceProvider;
 
+            public Task DisposalTask => _activeTcs.Task;
+
             public void Dispose()
             {
                 _serviceProvider.Dispose();
+                _activeTcs.SetResult(null);
             }
         }
 
