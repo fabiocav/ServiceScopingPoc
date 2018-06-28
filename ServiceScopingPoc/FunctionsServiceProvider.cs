@@ -12,18 +12,21 @@ namespace ServiceScopingPoc
 {
     public class FunctionsServiceProvider : IServiceProvider, IServiceScopeFactory
     {
+        private static readonly Rules _defaultContainerRules;
         private Container _root;
         private FunctionsResolver _currentResolver;
 
-        public FunctionsServiceProvider(IServiceCollection descriptors)
+        static FunctionsServiceProvider()
         {
-            _root = new Container(rules =>
-            {
-                return rules
+            _defaultContainerRules = Rules.Default
                 .With(FactoryMethod.ConstructorWithResolvableArguments)
                 .WithFactorySelector(Rules.SelectLastRegisteredFactory())
                 .WithTrackingDisposableTransients();
-            });
+        }
+
+        public FunctionsServiceProvider(IServiceCollection descriptors)
+        {
+            _root = new Container(rules => _defaultContainerRules);
 
             _root.Populate(descriptors);
             _root.UseInstance<IServiceProvider>(this);
@@ -61,7 +64,7 @@ namespace ServiceScopingPoc
 
         internal void UpdateChildServices(IServiceCollection serviceDescriptors)
         {
-            var rules = Rules.Default
+            var rules = _defaultContainerRules
                 .WithUnknownServiceResolvers(request => new DelegateFactory(_ => _root.Resolve(request.ServiceType, IfUnresolved.ReturnDefault)));
 
             var resolver = new Container(rules);
