@@ -5,25 +5,28 @@ using System.Threading.Tasks;
 
 namespace ServiceScopingPoc
 {
-    public class FunctionsServiceScope : IServiceScope
+    public partial class FunctionsServiceProvider
     {
-        private readonly TaskCompletionSource<object> _activeTcs;
-        private readonly ScopedServiceProvider _serviceProvider;
-
-        public FunctionsServiceScope(IResolverContext serviceProvider)
+        public class FunctionsServiceScope : IServiceScope
         {
-            _activeTcs = new TaskCompletionSource<object>();
-            _serviceProvider = new ScopedServiceProvider(serviceProvider);
-        }
+            private readonly TaskCompletionSource<object> _activeTcs;
+            private readonly ScopedServiceProvider _serviceProvider;
 
-        public IServiceProvider ServiceProvider => _serviceProvider;
+            public FunctionsServiceScope(IResolverContext serviceProvider)
+            {
+                _activeTcs = new TaskCompletionSource<object>();
+                _serviceProvider = new ScopedServiceProvider(serviceProvider);
+            }
 
-        public Task DisposalTask => _activeTcs.Task;
+            public IServiceProvider ServiceProvider => _serviceProvider;
 
-        public void Dispose()
-        {
-            _serviceProvider.Dispose();
-            _activeTcs.SetResult(null);
+            public Task DisposalTask => _activeTcs.Task;
+
+            public void Dispose()
+            {
+                _serviceProvider.Dispose();
+                _activeTcs.SetResult(null);
+            }
         }
     }
 }

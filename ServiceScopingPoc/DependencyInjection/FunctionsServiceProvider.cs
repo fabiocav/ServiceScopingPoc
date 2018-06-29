@@ -9,7 +9,7 @@ using System.Threading;
 
 namespace ServiceScopingPoc
 {
-    public class FunctionsServiceProvider : IServiceProvider, IServiceScopeFactory, IDisposable
+    public partial class FunctionsServiceProvider : IServiceProvider, IServiceScopeFactory, IDisposable
     {
         private static readonly Rules _defaultContainerRules;
         private Container _root;
