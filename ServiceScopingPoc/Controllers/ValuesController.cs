@@ -10,7 +10,14 @@ namespace ServiceScopingPoc.Controllers
     [Route("api/[controller]")]
     [ApiController]
     public class ValuesController : ControllerBase
-    {        // GET api/values
+    {
+        private readonly IScriptHostManager manager;
+
+        public ValuesController(IScriptHostManager manager)
+        {
+            this.manager = manager;
+        }
+        // GET api/values
         [HttpGet]
         public ActionResult<IEnumerable<string>> Get()
         {
