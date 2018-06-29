@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using ServiceScopingPoc.DependencyInjection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -28,6 +29,7 @@ namespace ServiceScopingPoc
                             .UseServiceProviderFactory(new ExternalFunctionsServiceProviderFactory(_provider))
                             .ConfigureServices(s =>
                             {
+                                s.AddSingleton<IHostLifetime, ScriptHostLifetime>();
                                 s.AddScoped<IServiceA, TestService>(); // test scoped service in child container
                                 s.AddSingleton<IServiceB, TestService>(); // test singleton service in child container
                             })

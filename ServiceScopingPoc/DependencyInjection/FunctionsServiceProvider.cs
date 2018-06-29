@@ -83,78 +83,80 @@ namespace ServiceScopingPoc
         {
             return _currentResolver.CreateChildScope();
         }
-
-        internal class FunctionsResolver : IDisposable
+    }
+    internal class FunctionsResolver : IDisposable
+    {
+        public FunctionsResolver(IContainer resolver)
         {
-            public FunctionsResolver(IContainer resolver)
-            {
-                Container = resolver;
-                ChildScopes = new HashSet<FunctionsServiceScope>();
-            }
-
-            public IContainer Container { get; }
-
-            public HashSet<FunctionsServiceScope> ChildScopes { get; }
-
-            public void Dispose()
-            {
-                Task childScopeTasks = Task.WhenAll(ChildScopes.Select(s => s.DisposalTask));
-                Task.WhenAny(childScopeTasks, Task.Delay(30000))
-                    .ContinueWith(t => Container.Dispose());
-            }
-
-            internal FunctionsServiceScope CreateChildScope()
-            {
-                IResolverContext scopedContext = Container.OpenScope();
-                var scope = new FunctionsServiceScope(scopedContext);
-                ChildScopes.Add(scope);
-
-                scope.DisposalTask.ContinueWith(t => ChildScopes.Remove(scope));
-
-                return scope;
-            }
+            Container = resolver;
+            ChildScopes = new HashSet<FunctionsServiceScope>();
         }
 
-        public class FunctionsServiceScope : IServiceScope
+        public IContainer Container { get; }
+
+        public HashSet<FunctionsServiceScope> ChildScopes { get; }
+
+        public void Dispose()
         {
-            private readonly TaskCompletionSource<object> _activeTcs;
-            private readonly ScopedServiceProvider _serviceProvider;
-
-            public FunctionsServiceScope(IResolverContext serviceProvider)
-            {
-                _activeTcs = new TaskCompletionSource<object>();
-                _serviceProvider = new ScopedServiceProvider(serviceProvider);
-            }
-
-            public IServiceProvider ServiceProvider => _serviceProvider;
-
-            public Task DisposalTask => _activeTcs.Task;
-
-            public void Dispose()
-            {
-                _serviceProvider.Dispose();
-                _activeTcs.SetResult(null);
-            }
+            Task childScopeTasks = Task.WhenAll(ChildScopes.Select(s => s.DisposalTask));
+            Task.WhenAny(childScopeTasks, Task.Delay(5000))
+                .ContinueWith(t =>
+                {
+                    Container.Dispose();
+                });
         }
 
-        public class ScopedServiceProvider : IServiceProvider, IDisposable
+        internal FunctionsServiceScope CreateChildScope()
         {
-            private readonly IResolverContext _resolver;
+            IResolverContext scopedContext = Container.OpenScope();
+            var scope = new FunctionsServiceScope(scopedContext);
+            ChildScopes.Add(scope);
 
-            public ScopedServiceProvider(IResolverContext container)
-            {
-                _resolver = container;
-            }
+            scope.DisposalTask.ContinueWith(t => ChildScopes.Remove(scope));
 
-            public void Dispose()
-            {
-                _resolver.Dispose();
-            }
+            return scope;
+        }
+    }
 
-            public object GetService(Type serviceType)
-            {
-                return _resolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
-            }
+    public class FunctionsServiceScope : IServiceScope
+    {
+        private readonly TaskCompletionSource<object> _activeTcs;
+        private readonly ScopedServiceProvider _serviceProvider;
+
+        public FunctionsServiceScope(IResolverContext serviceProvider)
+        {
+            _activeTcs = new TaskCompletionSource<object>();
+            _serviceProvider = new ScopedServiceProvider(serviceProvider);
+        }
+
+        public IServiceProvider ServiceProvider => _serviceProvider;
+
+        public Task DisposalTask => _activeTcs.Task;
+
+        public void Dispose()
+        {
+            _serviceProvider.Dispose();
+            _activeTcs.SetResult(null);
+        }
+    }
+
+    public class ScopedServiceProvider : IServiceProvider, IDisposable
+    {
+        private readonly IResolverContext _resolver;
+
+        public ScopedServiceProvider(IResolverContext container)
+        {
+            _resolver = container;
+        }
+
+        public void Dispose()
+        {
+            _resolver.Dispose();
+        }
+
+        public object GetService(Type serviceType)
+        {
+            return _resolver.Resolve(serviceType, IfUnresolved.ReturnDefault);
         }
     }
 }

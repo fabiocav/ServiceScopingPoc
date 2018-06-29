@@ -26,11 +26,12 @@ namespace ServiceScopingPoc.Controllers
         }
 
         [HttpGet("restart")]
-        public async Task<ActionResult> Restart()
+        public ActionResult Restart()
         {
-            await _hostManager.RestartHostAsync(CancellationToken.None);
+            var ignore = _hostManager.RestartHostAsync(CancellationToken.None)
+                .ContinueWith(t => { }, continuationOptions: TaskContinuationOptions.OnlyOnFaulted);
 
-            return Ok();
+            return Accepted();
         }
     }
 }
