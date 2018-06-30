@@ -4,11 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using ServiceScopingPoc.Controllers;
 
 namespace ServiceScopingPoc
 {
@@ -26,6 +28,7 @@ namespace ServiceScopingPoc
                 s.AddSingleton<TestHostedService>();
                 s.Replace(ServiceDescriptor.Singleton<IServiceProviderFactory<IServiceCollection>>(new FunctionsServiceProviderFactory()));
             })
-            .UseStartup<Startup>();
+            .UseStartup<Startup>()
+            .ConfigureLogging(b => b.ClearProviders());
     }
 }

@@ -84,6 +84,7 @@ namespace ServiceScopingPoc
             return _currentResolver.CreateChildScope();
         }
     }
+
     internal class FunctionsResolver : IDisposable
     {
         public FunctionsResolver(IContainer resolver)

@@ -4,17 +4,20 @@ using Microsoft.Extensions.Hosting;
 using ServiceScopingPoc.DependencyInjection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace ServiceScopingPoc
 {
     public class TestHostedService : IHostedService, IScriptHostManager
     {
         private readonly FunctionsServiceProvider _provider;
+        private readonly ILoggerFactory loggerFactory;
         private IHost _host;
 
-        public TestHostedService(FunctionsServiceProvider provider)
+        public TestHostedService(FunctionsServiceProvider provider, ILoggerFactory loggerFactory)
         {
             _provider = provider;
+            this.loggerFactory = loggerFactory;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -29,6 +32,9 @@ namespace ServiceScopingPoc
                             .UseServiceProviderFactory(new ExternalFunctionsServiceProviderFactory(_provider))
                             .ConfigureServices(s =>
                             {
+                                var fa = new LoggerFactory();
+                                fa.AddConsole(LogLevel.Warning);
+                                s.AddSingleton<ILoggerFactory>(fa);
                                 s.AddSingleton<IHostLifetime, ScriptHostLifetime>();
                                 s.AddScoped<IServiceA, TestService>(); // test scoped service in child container
                                 s.AddSingleton<IServiceB, TestService>(); // test singleton service in child container

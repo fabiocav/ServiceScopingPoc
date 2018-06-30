@@ -11,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ServiceScopingPoc.Controllers;
 
 namespace ServiceScopingPoc
 {
@@ -49,6 +50,8 @@ namespace ServiceScopingPoc
                 app.UseHsts();
             }
 
+            app.UseMiddleware<TestResetMiddleware>();
+            app.UseMiddleware<TestMiddleware>();
             app.UseHttpsRedirection();
             app.UseMvc();
         }
