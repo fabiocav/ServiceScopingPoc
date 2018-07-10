@@ -28,14 +28,11 @@ namespace ServiceScopingPoc
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public IServiceProvider ConfigureServices(IServiceCollection services)
+        public void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<IScriptHostManager>(p => p.GetRequiredService<TestHostedService>());
             services.AddSingleton<IHostedService>(p => p.GetRequiredService<TestHostedService>());
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
-
-            _serviceProvider.AddServices(services);
-            return _serviceProvider;
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
